@@ -3,6 +3,7 @@ from flask import Flask, render_template, request
 from model import init_db, save_result, get_all_results
 from scraper import scrape_mock_data
 
+init_db()
 
 app = Flask(__name__)
 
