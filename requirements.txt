@@ -3,3 +3,4 @@ Flask==2.3.2
 requests
 beautifulsoup4
 gunicorn
+pandas
