@@ -1,87 +1,70 @@
-# scraper.py
+import requests
+from bs4 import BeautifulSoup
 import re
-import time
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.common.keys import Keys
-from webdriver_manager.chrome import ChromeDriverManager
 
-def extract_email(text):
-    match = re.search(r'[\w\.-]+@[\w\.-]+\.\w+', text)
-    return match.group(0) if match else ""
+headers = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                  "(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+}
 
-def scrape_mock_data(keyword):
-    options = Options()
-    options.add_argument("--headless=new")
-    options.add_argument("--disable-gpu")
-    options.add_argument("--no-sandbox")
-    options.add_argument("--window-size=1280,800")
 
-    service = Service(ChromeDriverManager().install())
-    driver = webdriver.Chrome(service=service, options=options)
-
+def search_google_maps(keyword):
     results = []
-    try:
-        driver.get("https://www.google.com/maps")
-        time.sleep(2)
 
-        search_box = driver.find_element(By.ID, "searchboxinput")
-        search_box.send_keys(keyword)
-        driver.find_element(By.ID, "searchbox-searchbutton").click()
-        time.sleep(5)
+    query = f'site:google.com/maps {keyword}'
+    url = f'https://www.google.com/search?q={requests.utils.quote(query)}'
 
-        for _ in range(3):
-            driver.find_element(By.TAG_NAME, "body").send_keys(Keys.END)
-            time.sleep(1)
+    res = requests.get(url, headers=headers)
+    soup = BeautifulSoup(res.text, 'html.parser')
 
-        items = driver.find_elements(By.CSS_SELECTOR, "div.Nv2PK")
-        for i, item in enumerate(items[:5]):  # Lấy 5 kết quả đầu tiên
-            try:
-                item.click()
-                time.sleep(3)
+    for g in soup.select('div.g'):
+        title = g.select_one('h3')
+        link = g.find('a', href=True)
+        snippet = g.select_one('.VwiC3b')
 
-                name = driver.find_element(By.CSS_SELECTOR, "h1.DUwDvf").text
+        name = title.text if title else ''
+        address = ''
+        phone = ''
+        website = ''
+        email = ''
 
-                # Mặc định
-                address = phone = email = website = ""
+        if snippet:
+            text = snippet.text
+            # Tìm địa chỉ
+            if 'Địa chỉ' in text:
+                match = re.search(r'Địa chỉ[:：]?\s*(.+?)(\s{2,}|$)', text)
+                if match:
+                    address = match.group(1).strip()
 
-                # Tìm theo nhóm span chứa info
-                spans = driver.find_elements(By.CSS_SELECTOR, "div.Io6YTe span")
-                for span in spans:
-                    text = span.text
-                    if "Địa chỉ" in text or "P." in text or "Q." in text:
-                        address = text
-                    elif text.startswith("0") or text.startswith("+84"):
-                        phone = text
-                    elif "@" in text:
-                        email = extract_email(text)
+            # Tìm số điện thoại
+            phone_match = re.search(r'(\+84[\d\s]+|0\d{9,10})', text)
+            if phone_match:
+                phone = phone_match.group(1)
 
-                # Tìm website
-                links = driver.find_elements(By.CSS_SELECTOR, "a")
-                for link in links:
-                    href = link.get_attribute("href")
-                    if href and "http" in href and not "google.com" in href:
-                        website = href
-                        break
+            # Tìm website
+            web_match = re.search(r'(https?://[^\s]+)', text)
+            if web_match:
+                website = web_match.group(1)
 
-                results.append({
-                    "name": name,
-                    "address": address,
-                    "phone": phone,
-                    "email": email,
-                    "website": website
-                })
+            # Tìm email
+            email_match = re.search(r'[\w\.-]+@[\w\.-]+\.\w+', text)
+            if email_match:
+                email = email_match.group(0)
 
-                driver.back()
-                time.sleep(2)
-                items = driver.find_elements(By.CSS_SELECTOR, "div.Nv2PK")
-            except Exception as e:
-                print(f"❌ Lỗi tại mục {i + 1}: {e}")
-                continue
-
-    finally:
-        driver.quit()
+        results.append({
+            'name': name,
+            'address': address,
+            'phone': phone,
+            'website': website,
+            'email': email,
+            'link': link['href'] if link else '',
+        })
 
     return results
+
+
+def scrape_mock_data(keywords):
+    all_results = []
+    for kw in keywords:
+        all_results.extend(search_google_maps(kw))
+    return all_results

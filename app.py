@@ -6,7 +6,7 @@ import pandas as pd
 import os
 
 app = Flask(__name__)
-
+data = scrape_mock_data(keywords)
 @app.route('/', methods=['GET', 'POST'])
 def index():
     results = []
