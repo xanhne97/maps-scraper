@@ -4,4 +4,4 @@ requests
 beautifulsoup4
 gunicorn
 pandas
-serpapi
+serpapi==0.6.0
