@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request
-from scraper import scrape_mock_data  # hoặc scrape_real_data nếu bạn dùng requests
+from scraper import scrape_from_keywords  # giả sử hàm này có rồi
 
 app = Flask(__name__)
 
@@ -7,10 +7,10 @@ app = Flask(__name__)
 def index():
     data = []
     if request.method == "POST":
-        keywords = request.form.get("keywords")
+        keyword_str = request.form.get("keywords", "")
+        keywords = [kw.strip() for kw in keyword_str.split(",") if kw.strip()]
         if keywords:
-            data = scrape_mock_data(keywords)  # hoặc scrape_real_data(keywords)
-
+            data = scrape_from_keywords(keywords)
     return render_template("index.html", data=data)
 
 if __name__ == "__main__":

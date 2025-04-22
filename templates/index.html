@@ -1,22 +1,19 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <title>Google Maps Scraper</title>
-</head>
-<body>
-  <h1>Google Maps Scraper</h1>
-  <form method="post">
-    <input type="text" name="keywords" placeholder="Nhập từ khóa" required>
-    <button type="submit">Tìm kiếm</button>
-  </form>
+<form method="POST">
+  <input type="text" name="keywords" placeholder="Nhập từ khóa (cách nhau bằng dấu phẩy)">
+  <button type="submit">Tìm kiếm</button>
+</form>
 
-  {% if data %}
-    <h2>Kết quả:</h2>
-    <ul>
-      {% for row in data %}
-        <li>{{ row }}</li>
-      {% endfor %}
-    </ul>
-  {% endif %}
-</body>
-</html>
+{% if data %}
+  <h3>Kết quả:</h3>
+  <ul>
+    {% for item in data %}
+      <li>
+        <strong>{{ item.name }}</strong><br>
+        {{ item.address }}<br>
+        {{ item.phone }}<br>
+        {{ item.email }}<br>
+        {{ item.website }}
+      </li>
+    {% endfor %}
+  </ul>
+{% endif %}
