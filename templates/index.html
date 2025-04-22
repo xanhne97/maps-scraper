@@ -1,0 +1,32 @@
+# templates/index.html
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Google Maps Scraper</title>
+</head>
+<body>
+    <h2>🔍 Tìm doanh nghiệp trên Google Maps</h2>
+    <form method="post">
+        <input type="text" name="keyword" placeholder="Nhập từ khóa..." required>
+        <button type="submit">Tìm kiếm</button>
+    </form>
+
+    {% if results %}
+    <h3>Kết quả mới nhất:</h3>
+    <ul>
+        {% for r in results %}
+        <li><b>{{ r.name }}</b> - {{ r.address }} - 📞 {{ r.phone }}</li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+
+    <hr>
+    <h3>Lịch sử tìm kiếm:</h3>
+    <ul>
+        {% for h in history %}
+        <li>{{ h.name }} - {{ h.address }} - {{ h.phone }}</li>
+        {% endfor %}
+    </ul>
+</body>
+</html>
