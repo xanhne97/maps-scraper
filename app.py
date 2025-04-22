@@ -1,7 +1,8 @@
 # app.py
 from flask import Flask, render_template, request
-from app.models import init_db, save_result, get_all_results
+from model import init_db, save_result, get_all_results
 from scraper import scrape_mock_data
+
 
 app = Flask(__name__)
 
