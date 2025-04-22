@@ -1,32 +1,51 @@
-# templates/index.html
+<!-- templates/index.html -->
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-    <meta charset="UTF-8">
-    <title>Google Maps Scraper</title>
+  <meta charset="UTF-8">
+  <title>Maps Scraper</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
-<body>
-    <h2>🔍 Tìm doanh nghiệp trên Google Maps</h2>
-    <form method="post">
-        <input type="text" name="keyword" placeholder="Nhập từ khóa..." required>
-        <button type="submit">Tìm kiếm</button>
+<body class="bg-light">
+  <div class="container py-5">
+    <h2 class="mb-4 text-center">🔍 Google Maps Scraper</h2>
+
+    <form method="POST" class="mb-4">
+      <div class="mb-3">
+        <label for="keywords" class="form-label">Nhập từ khóa (mỗi dòng 1 từ):</label>
+        <textarea name="keywords" id="keywords" class="form-control" rows="4" placeholder="Gara ô tô Quận 1&#10;Nhà thuốc Quận 3"></textarea>
+      </div>
+      <button type="submit" class="btn btn-primary">Tìm kiếm</button>
     </form>
 
     {% if results %}
-    <h3>Kết quả mới nhất:</h3>
-    <ul>
-        {% for r in results %}
-        <li><b>{{ r.name }}</b> - {{ r.address }} - 📞 {{ r.phone }}</li>
-        {% endfor %}
-    </ul>
+      <div class="card">
+        <div class="card-body">
+          <h5 class="card-title">📋 Kết quả tìm kiếm</h5>
+          <table class="table table-bordered table-hover">
+            <thead class="table-light">
+              <tr>
+                <th>#</th>
+                <th>Tên</th>
+                <th>Địa chỉ</th>
+                <th>SĐT</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for r in results %}
+              <tr>
+                <td>{{ loop.index }}</td>
+                <td>{{ r.name }}</td>
+                <td>{{ r.address }}</td>
+                <td>{{ r.phone }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          <a href="/download" class="btn btn-success">📥 Tải Excel</a>
+        </div>
+      </div>
     {% endif %}
-
-    <hr>
-    <h3>Lịch sử tìm kiếm:</h3>
-    <ul>
-        {% for h in history %}
-        <li>{{ h.name }} - {{ h.address }} - {{ h.phone }}</li>
-        {% endfor %}
-    </ul>
+  </div>
 </body>
 </html>
