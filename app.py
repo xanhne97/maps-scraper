@@ -4,7 +4,7 @@ import pandas as pd
 import io
 
 app = Flask(__name__)
-last_data = []  # Dữ liệu tìm kiếm gần nhất (lưu tạm để xuất Excel)
+last_data = []  # lưu kết quả gần nhất để export
 
 @app.route("/", methods=["GET", "POST"])
 def index():
@@ -16,7 +16,7 @@ def index():
             keywords = [kw.strip() for kw in keyword_str.splitlines() if kw.strip()]
             if keywords:
                 data = scrape_from_keywords(keywords)
-                last_data = data  # Lưu lại để dùng cho xuất Excel
+                last_data = data  # lưu lại để export
         except Exception as e:
             print("❌ Lỗi tìm kiếm:", e)
     return render_template("index.html", data=data)
@@ -27,18 +27,19 @@ def download_excel():
     if not last_data:
         return "Không có dữ liệu để xuất", 400
 
-    df = pd.DataFrame(last_data)
-    output = io.BytesIO()
-    with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        df.to_excel(writer, index=False, sheet_name="KetQua")
-    output.seek(0)
+    try:
+        df = pd.DataFrame(last_data)
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df.to_excel(writer, index=False, sheet_name="KetQua")
+        output.seek(0)
 
-    return send_file(
-        output,
-        as_attachment=True,
-        download_name="ket_qua_google_maps.xlsx",
-        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
-
-if __name__ == "__main__":
-    app.run(debug=True)
+        return send_file(
+            output,
+            as_attachment=True,
+            download_name="ket_qua_google_maps.xlsx",
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+    except Exception as e:
+        print("❌ Lỗi khi xuất Excel:", e)
+        return f"Lỗi khi xuất Excel: {str(e)}", 500
