@@ -37,22 +37,29 @@
         </thead>
         <tbody>
           {% for item in data %}
-         <tr>
-  <td>{{ loop.index }}</td>         <!-- STT -->
-  <td>{{ item.title or "-" }}</td>
-  <td>{{ item.address or "-" }}</td>
-  <td>{{ item.phone or "-" }}</td>
-  <td>
-    {% if item.website %}
-      <a href="{{ item.website }}" target="_blank">Xem</a>
-    {% else %}
-      -
-    {% endif %}
-  </td>
-</tr>
-{% endfor %}
+          <tr>
+            <td>{{ loop.index }}</td>
+            <td>{{ item.title or "-" }}</td>
+            <td>{{ item.address or "-" }}</td>
+            <td>{{ item.phone or "-" }}</td>
+            <td>
+              {% if item.website %}
+              <a href="{{ item.website }}" target="_blank">Xem</a>
+              {% else %}
+              -
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
         </tbody>
       </table>
+    </div>
+
+    <!-- ✅ Nút tải Excel -->
+    <div class="card-footer">
+      <a href="/download" class="btn btn-success">
+        <i class="fas fa-file-excel"></i> Tải kết quả Excel
+      </a>
     </div>
   </div>
   {% elif request.method == 'POST' %}
