@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request
-from scraper import scrape_from_keywords  # giả sử hàm này có rồi
+from scraper import scrape_from_keywords
 
 app = Flask(__name__)
 
@@ -8,7 +8,7 @@ def index():
     data = []
     if request.method == "POST":
         keyword_str = request.form.get("keywords", "")
-        keywords = [kw.strip() for kw in keyword_str.split(",") if kw.strip()]
+        keywords = [kw.strip() for kw in keyword_str.splitlines() if kw.strip()]
         if keywords:
             data = scrape_from_keywords(keywords)
     return render_template("index.html", data=data)

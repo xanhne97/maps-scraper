@@ -1,19 +1,63 @@
-<form method="POST">
-  <input type="text" name="keywords" placeholder="Nhập từ khóa (cách nhau bằng dấu phẩy)">
-  <button type="submit">Tìm kiếm</button>
-</form>
+{% extends "layout.html" %}
+{% block content %}
 
-{% if data %}
-  <h3>Kết quả:</h3>
-  <ul>
-    {% for item in data %}
-      <li>
-        <strong>{{ item.name }}</strong><br>
-        {{ item.address }}<br>
-        {{ item.phone }}<br>
-        {{ item.email }}<br>
-        {{ item.website }}
-      </li>
-    {% endfor %}
-  </ul>
-{% endif %}
+<!-- Page header -->
+<div class="content-header">
+  <div class="container-fluid">
+    <h3 class="mb-4">🔍 Tìm kiếm doanh nghiệp trên Google Maps</h3>
+
+    <!-- Form nhập từ khóa -->
+    <form method="POST" action="/">
+      <div class="form-group">
+        <label for="keywords">Nhập từ khóa (mỗi dòng 1 từ khóa):</label>
+        <textarea name="keywords" id="keywords" class="form-control" rows="4" placeholder="Ví dụ: sửa xe Quận 1&#10;quán cafe Thủ Đức">{{ request.form.keywords }}</textarea>
+      </div>
+      <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> Tìm kiếm</button>
+    </form>
+  </div>
+</div>
+
+<!-- Bảng kết quả -->
+<div class="container-fluid mt-4">
+  {% if data %}
+  <div class="card">
+    <div class="card-header bg-success">
+      <h5 class="card-title text-white">Kết quả tìm kiếm ({{ data|length }})</h5>
+    </div>
+    <div class="card-body table-responsive p-0">
+      <table class="table table-hover text-nowrap">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Tên</th>
+            <th>Địa chỉ</th>
+            <th>Điện thoại</th>
+            <th>Website</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for i, item in enumerate(data) %}
+          <tr>
+            <td>{{ i + 1 }}</td>
+            <td>{{ item.title or "-" }}</td>
+            <td>{{ item.address or "-" }}</td>
+            <td>{{ item.phone or "-" }}</td>
+            <td>
+              {% if item.website %}
+              <a href="{{ item.website }}" target="_blank">Xem</a>
+              {% else %}
+              -
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% elif request.method == 'POST' %}
+    <div class="alert alert-warning">Không tìm thấy kết quả.</div>
+  {% endif %}
+</div>
+
+{% endblock %}
