@@ -1,5 +1,5 @@
 import os
-from serpapi.google_search_results import GoogleSearch
+from serpapi import GoogleSearch
 
 SERP_API_KEY = os.getenv("4d1768c9601cd2fb5b7e78d33f981521d07751a2a73e34fe31e09865e86a9be8")  # Bạn phải set biến môi trường này trên Render
 
