@@ -1,19 +1,20 @@
 import os
 from serpapi import GoogleSearch
 
-# Đúng cú pháp lấy biến môi trường
+# Lấy API Key từ biến môi trường, hoặc fallback key mặc định
 SERP_API_KEY = os.getenv("SERPAPI_API_KEY") or "4d1768c9601cd2fb5b7e78d33f981521d07751a2a73e34fe31e09865e86a9be8"
 
-def scrape_from_keywords(keywords):
+def scrape_from_keywords(keywords, max_results=40):
     all_results = []
 
     for keyword in keywords:
         params = {
             "engine": "google_maps",
             "q": keyword,
-            "location": "Vietnam",  # Gợi ý thêm để tăng độ chính xác
+            "location": "Vietnam",       # Gợi ý để SerpAPI xác định khu vực
             "type": "search",
-            "api_key": SERP_API_KEY
+            "api_key": SERP_API_KEY,
+            "num": max_results           # ✅ Số lượng kết quả mong muốn (tối đa 120 tùy plan)
         }
 
         try:
