@@ -13,10 +13,11 @@ def index():
     if request.method == "POST":
         try:
             keyword_str = request.form.get("keywords", "")
+            max_results = int(request.form.get("max_results", 20))  # Lấy số kết quả
             keywords = [kw.strip() for kw in keyword_str.splitlines() if kw.strip()]
             if keywords:
-                data = scrape_from_keywords(keywords)
-                last_data = data  # lưu lại để export
+                data = scrape_from_keywords(keywords, max_results=max_results)
+                last_data = data
         except Exception as e:
             print("❌ Lỗi tìm kiếm:", e)
     return render_template("index.html", data=data)
@@ -43,3 +44,6 @@ def download_excel():
     except Exception as e:
         print("❌ Lỗi khi xuất Excel:", e)
         return f"Lỗi khi xuất Excel: {str(e)}", 500
+
+if __name__ == "__main__":
+    app.run(debug=True)
