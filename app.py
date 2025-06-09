@@ -4,7 +4,7 @@ import pandas as pd
 import io
 
 app = Flask(__name__)
-last_data = []  # lưu kết quả gần nhất để export
+last_data = []
 
 @app.route("/", methods=["GET", "POST"])
 def index():
@@ -13,10 +13,14 @@ def index():
     if request.method == "POST":
         try:
             keyword_str = request.form.get("keywords", "")
-            max_results = int(request.form.get("max_results", 20))  # Lấy số kết quả
+            street_filter = request.form.get("street_filter", "").strip().lower()
             keywords = [kw.strip() for kw in keyword_str.splitlines() if kw.strip()]
             if keywords:
-                data = scrape_from_keywords(keywords, max_results=max_results)
+                all_results = scrape_from_keywords(keywords)
+                if street_filter:
+                    data = [item for item in all_results if item["address"] and street_filter in item["address"].lower()]
+                else:
+                    data = all_results
                 last_data = data
         except Exception as e:
             print("❌ Lỗi tìm kiếm:", e)
@@ -44,6 +48,3 @@ def download_excel():
     except Exception as e:
         print("❌ Lỗi khi xuất Excel:", e)
         return f"Lỗi khi xuất Excel: {str(e)}", 500
-
-if __name__ == "__main__":
-    app.run(debug=True)

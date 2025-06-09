@@ -1,39 +1,24 @@
 {% extends "layout.html" %}
 {% block content %}
 
-<!-- Page header -->
 <div class="content-header">
   <div class="container-fluid">
     <h3 class="mb-4">🔍 Tìm kiếm doanh nghiệp trên Google Maps</h3>
 
-    <!-- Form nhập từ khóa -->
     <form method="POST" action="/">
       <div class="form-group">
         <label for="keywords">Nhập từ khóa (mỗi dòng 1 từ khóa):</label>
         <textarea name="keywords" id="keywords" class="form-control" rows="4" placeholder="Ví dụ: sửa xe Quận 1&#10;quán cafe Thủ Đức">{{ request.form.keywords }}</textarea>
       </div>
-
-      <!-- Dropdown chọn số kết quả -->
-      <div class="form-group mt-3">
-        <label for="max_results">Số kết quả mỗi từ khóa:</label>
-        <select name="max_results" id="max_results" class="form-control" style="width: 200px;">
-          {% set selected = request.form.max_results or "20" %}
-          <option value="20" {% if selected == "20" %}selected{% endif %}>20</option>
-          <option value="40" {% if selected == "40" %}selected{% endif %}>40</option>
-          <option value="60" {% if selected == "60" %}selected{% endif %}>60</option>
-          <option value="80" {% if selected == "80" %}selected{% endif %}>80</option>
-          <option value="100" {% if selected == "100" %}selected{% endif %}>100</option>
-        </select>
+      <div class="form-group">
+        <label for="street_filter">Lọc theo tên đường (tùy chọn):</label>
+        <input type="text" name="street_filter" id="street_filter" class="form-control" placeholder="Ví dụ: Lê Văn Việt" value="{{ request.form.street_filter }}">
       </div>
-
-      <button type="submit" class="btn btn-primary mt-2">
-        <i class="fas fa-search"></i> Tìm kiếm
-      </button>
+      <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> Tìm kiếm</button>
     </form>
   </div>
 </div>
 
-<!-- Bảng kết quả -->
 <div class="container-fluid mt-4">
   {% if data %}
   <div class="card">
@@ -70,8 +55,6 @@
         </tbody>
       </table>
     </div>
-
-    <!-- Nút Tải Excel -->
     <div class="card-footer">
       <a href="/download" class="btn btn-success">
         <i class="fas fa-file-excel"></i> Tải kết quả Excel
