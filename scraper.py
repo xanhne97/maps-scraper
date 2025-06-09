@@ -2,7 +2,7 @@ import os
 from serpapi import GoogleSearch
 
 # Lấy API Key từ biến môi trường, hoặc fallback key mặc định
-SERP_API_KEY = os.getenv("SERPAPI_API_KEY") or "4d1768c9601cd2fb5b7e78d33f981521d07751a2a73e34fe31e09865e86a9be8"
+SERP_API_KEY = os.getenv("SERPAPI_API_KEY") or "fbfa3f1910e80bcea048aca735378f18771f79a42216962e95d1e12219820e6f"
 
 def scrape_from_keywords(keywords, max_results=40):
     all_results = []
