@@ -13,13 +13,13 @@ def index():
     if request.method == "POST":
         try:
             keyword_str = request.form.get("keywords", "")
-            street = request.form.get("street", "").strip()
-            radius = float(request.form.get("radius", "0").strip() or 0)
-            lat = float(request.form.get("lat", "0").strip())
-            lng = float(request.form.get("lng", "0").strip())
+            lat = float(request.form.get("latitude", 0))
+            lng = float(request.form.get("longitude", 0))
+            radius_km = float(request.form.get("radius_km", 0))
+            radius_m = radius_km * 1000 if radius_km else None
 
             keywords = [kw.strip() for kw in keyword_str.splitlines() if kw.strip()]
-            if keywords and lat and lng:
+            if keywords:
                 data = scrape_from_keywords(keywords, center_coords=(lat, lng), radius_m=radius_m)
                 last_data = data
         except Exception as e:
