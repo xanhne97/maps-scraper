@@ -2,12 +2,8 @@ import os
 from serpapi import GoogleSearch
 from geopy.distance import geodesic
 
-# Lấy API key từ biến môi trường hoặc giá trị mặc định (nên đặt biến môi trường SERPAPI_API_KEY trên Render)
 SERP_API_KEY = os.getenv("SERPAPI_API_KEY") or "fbfa3f1910e80bcea048aca735378f18771f79a42216962e95d1e12219820e6f"
-
-# Vị trí trung tâm (toạ độ giả định, có thể chỉnh theo từng thành phố hoặc theo input người dùng)
-CENTER_COORDS = (10.9115375, 106.9309495)  # TP.HCM
-
+CENTER_COORDS = (10.9133661, 106.9355516)  # Toạ độ TP.HCM
 
 def scrape_from_keywords(keywords, street_filter=None, radius_km=None):
     all_results = []
@@ -24,7 +20,6 @@ def scrape_from_keywords(keywords, street_filter=None, radius_km=None):
         try:
             search = GoogleSearch(params)
             results = search.get_dict()
-            print("📦 Kết quả từ SerpAPI:", results)
             local_results = results.get("local_results", [])
 
             if not local_results:
@@ -36,11 +31,9 @@ def scrape_from_keywords(keywords, street_filter=None, radius_km=None):
                 address = item.get("address")
                 coords = item.get("gps_coordinates")
 
-                # Lọc theo tên đường nếu có
                 if street_filter and (not address or street_filter.lower() not in address.lower()):
                     continue
 
-                # Lọc theo bán kính nếu có
                 if radius_km and coords:
                     place_coords = (coords.get("latitude"), coords.get("longitude"))
                     distance = geodesic(CENTER_COORDS, place_coords).km
