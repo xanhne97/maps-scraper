@@ -6,3 +6,4 @@ gunicorn
 pandas
 google-search-results>=2.0.2
 openpyxl
+geopy
