@@ -1,27 +1,22 @@
 import os
 from serpapi import GoogleSearch
-from math import radians, sin, cos, sqrt, asin
+from geopy.distance import geodesic
 
+# Lấy API key từ biến môi trường hoặc giá trị mặc định (nên đặt biến môi trường SERPAPI_API_KEY trên Render)
 SERP_API_KEY = os.getenv("SERPAPI_API_KEY") or "fbfa3f1910e80bcea048aca735378f18771f79a42216962e95d1e12219820e6f"
 
-def haversine(lat1, lon1, lat2, lon2):
-    # Tính khoảng cách giữa 2 tọa độ theo đơn vị mét
-    R = 6371000
-    dlat = radians(lat2 - lat1)
-    dlon = radians(lon2 - lon1)
-    a = sin(dlat/2)**2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlon/2)**2
-    c = 2 * asin(sqrt(a))
-    return R * c
+# Vị trí trung tâm mặc định (có thể thay đổi theo input người dùng)
+CENTER_COORDS = (10.9501, 106.8167)  # Ví dụ: Biên Hòa
 
-def scrape_from_keywords(keywords, lat, lng, street_filter=None, radius_m=None):
+def scrape_from_keywords(keywords, center_coords=CENTER_COORDS, radius_m=None):
     all_results = []
 
     for keyword in keywords:
         params = {
             "engine": "google_maps",
-            "type": "search",
             "q": keyword,
-            "ll": f"@{lat},{lng},15z",
+            "location": "Vietnam",
+            "type": "search",
             "api_key": SERP_API_KEY
         }
 
@@ -30,34 +25,29 @@ def scrape_from_keywords(keywords, lat, lng, street_filter=None, radius_m=None):
             results = search.get_dict()
             local_results = results.get("local_results", [])
 
-            print(f"🔍 {len(local_results)} kết quả cho từ khóa: {keyword}")
+            if not local_results:
+                print(f"⚠️ Không có kết quả cho từ khóa: {keyword}")
+            else:
+                print(f"✅ Tìm thấy {len(local_results)} kết quả cho: {keyword}")
 
-            for place in local_results:
-                address = place.get("address", "")
-                coords = place.get("gps_coordinates")
+            for item in local_results:
+                address = item.get("address")
+                coords = item.get("gps_coordinates")
 
-                if not address or not coords:
-                    continue
-
-                # ✅ Kiểm tra tên đường
-                if street_filter and street_filter.lower() not in address.lower():
-                    print(f"⛔ Bỏ qua (không chứa tên đường): {address}")
-                    continue
-
-                # ✅ Kiểm tra khoảng cách
-                distance = haversine(lat, lng, coords["latitude"], coords["longitude"])
-                if radius_m and distance > radius_m:
-                    print(f"⛔ Bỏ qua (quá xa): {address} ({int(distance)}m)")
-                    continue
+                # Lọc theo bán kính nếu có
+                if radius_m and coords:
+                    place_coords = (coords.get("latitude"), coords.get("longitude"))
+                    distance = geodesic(center_coords, place_coords).meters
+                    if distance > radius_m:
+                        continue
 
                 all_results.append({
-                    "title": place.get("title"),
+                    "title": item.get("title"),
                     "address": address,
-                    "phone": place.get("phone"),
-                    "website": place.get("website"),
-                    "lat": coords["latitude"],
-                    "lng": coords["longitude"],
-                    "distance": int(distance)
+                    "phone": item.get("phone"),
+                    "website": item.get("website"),
+                    "lat": coords.get("latitude") if coords else None,
+                    "lng": coords.get("longitude") if coords else None,
                 })
 
         except Exception as e:
