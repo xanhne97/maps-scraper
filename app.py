@@ -15,12 +15,21 @@ def index():
         try:
             keyword_str = request.form.get("keywords", "")
             street_filter = request.form.get("street_filter", "").strip()
+            lat = request.form.get("lat", "")
+            lng = request.form.get("lng", "")
             radius_km = request.form.get("radius_km", "")
-            radius_km = float(radius_km) if radius_km else None
 
             keywords = [kw.strip() for kw in keyword_str.splitlines() if kw.strip()]
+            radius_km = float(radius_km) if radius_km else None
+            center_coords = (float(lat), float(lng)) if lat and lng else None
+
             if keywords:
-                data = scrape_from_keywords(keywords, street_filter=street_filter, radius_km=radius_km)
+                data = scrape_from_keywords(
+                    keywords,
+                    street_filter=street_filter,
+                    radius_km=radius_km,
+                    center_coords=center_coords
+                )
                 last_data = data
         except Exception as e:
             print("\u274c Lỗi tìm kiếm:", e)

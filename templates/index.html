@@ -1,23 +1,36 @@
 {% extends "layout.html" %}
 {% block content %}
+
 <div class="content-header">
   <div class="container-fluid">
     <h3 class="mb-4">🔍 Tìm kiếm doanh nghiệp trên Google Maps</h3>
 
     <form method="POST" action="/">
       <div class="form-group">
-        <label for="keywords">Từ khóa (mỗi dòng 1 từ khóa):</label>
-        <textarea name="keywords" class="form-control" rows="4" placeholder="Ví dụ: sửa xe Quận 1&#10;dầu nhớt Thủ Đức">{{ request.form.keywords }}</textarea>
+        <label for="keywords">Từ khóa (mỗi dòng một từ):</label>
+        <textarea name="keywords" id="keywords" class="form-control" rows="4" placeholder="Ví dụ: sửa xe Quận 1&#10;quán cafe Thủ Đức">{{ request.form.keywords }}</textarea>
       </div>
 
       <div class="form-group">
-        <label for="street_filter">Tên đường (tuỳ chọn):</label>
-        <input type="text" name="street_filter" class="form-control" placeholder="Ví dụ: Lê Văn Việt" value="{{ request.form.street_filter }}">
+        <label for="street_filter">Tên đường (lọc theo địa chỉ, tùy chọn):</label>
+        <input type="text" name="street_filter" class="form-control" placeholder="VD: Lê Văn Việt" value="{{ request.form.street_filter }}">
       </div>
 
       <div class="form-group">
-        <label for="radius_km">Bán kính tìm kiếm (km) (tuỳ chọn):</label>
-        <input type="number" name="radius_km" class="form-control" step="0.1" placeholder="Ví dụ: 5" value="{{ request.form.radius_km }}">
+        <label>Tọa độ trung tâm:</label>
+        <div class="row">
+          <div class="col">
+            <input type="text" name="lat" class="form-control" placeholder="Latitude" value="{{ request.form.lat or '10.7769' }}">
+          </div>
+          <div class="col">
+            <input type="text" name="lng" class="form-control" placeholder="Longitude" value="{{ request.form.lng or '106.7009' }}">
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="radius_km">Bán kính tìm kiếm (km):</label>
+        <input type="number" name="radius_km" class="form-control" placeholder="VD: 2" value="{{ request.form.radius_km }}">
       </div>
 
       <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> Tìm kiếm</button>
@@ -25,11 +38,12 @@
   </div>
 </div>
 
+<!-- Bảng kết quả -->
 <div class="container-fluid mt-4">
   {% if data %}
   <div class="card">
-    <div class="card-header bg-success">
-      <h5 class="card-title text-white">Kết quả tìm kiếm ({{ data|length }})</h5>
+    <div class="card-header bg-success text-white">
+      <h5 class="card-title">Kết quả tìm kiếm ({{ data|length }})</h5>
     </div>
     <div class="card-body table-responsive p-0">
       <table class="table table-hover text-nowrap">
@@ -40,8 +54,7 @@
             <th>Địa chỉ</th>
             <th>Điện thoại</th>
             <th>Website</th>
-            <th>Lat</th>
-            <th>Lng</th>
+            <th>Tọa độ</th>
           </tr>
         </thead>
         <tbody>
@@ -51,14 +64,22 @@
             <td>{{ item.title or "-" }}</td>
             <td>{{ item.address or "-" }}</td>
             <td>{{ item.phone or "-" }}</td>
-            <td>{% if item.website %}<a href="{{ item.website }}" target="_blank">Xem</a>{% else %}-{% endif %}</td>
-            <td>{{ item.lat or "-" }}</td>
-            <td>{{ item.lng or "-" }}</td>
+            <td>
+              {% if item.website %}
+                <a href="{{ item.website }}" target="_blank">Xem</a>
+              {% else %}-{% endif %}
+            </td>
+            <td>
+              {% if item.lat and item.lng %}
+                {{ item.lat }}, {{ item.lng }}
+              {% else %}-{% endif %}
+            </td>
           </tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
+
     <div class="card-footer">
       <a href="/download" class="btn btn-success">
         <i class="fas fa-file-excel"></i> Tải kết quả Excel
@@ -66,7 +87,8 @@
     </div>
   </div>
   {% elif request.method == 'POST' %}
-    <div class="alert alert-warning">Không tìm thấy kết quả.</div>
+    <div class="alert alert-warning">⚠️ Không tìm thấy kết quả phù hợp.</div>
   {% endif %}
 </div>
+
 {% endblock %}
