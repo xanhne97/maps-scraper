@@ -6,7 +6,7 @@ from geopy.distance import geodesic
 SERP_API_KEY = os.getenv("SERPAPI_API_KEY") or "fbfa3f1910e80bcea048aca735378f18771f79a42216962e95d1e12219820e6f"
 
 # Vị trí trung tâm (toạ độ giả định, có thể chỉnh theo từng thành phố hoặc theo input người dùng)
-CENTER_COORDS = (10.7769, 106.7009)  # TP.HCM
+CENTER_COORDS = (10.9115375, 106.9309495)  # TP.HCM
 
 
 def scrape_from_keywords(keywords, street_filter=None, radius_km=None):
