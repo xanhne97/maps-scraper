@@ -20,7 +20,7 @@ def index():
 
             keywords = [kw.strip() for kw in keyword_str.splitlines() if kw.strip()]
             if keywords and lat and lng:
-                data = scrape_from_keywords(keywords, lat, lng, street_filter=street, radius_m=radius)
+                data = scrape_from_keywords(keywords, center_coords=(lat, lng), radius_m=radius_m)
                 last_data = data
         except Exception as e:
             print("❌ Lỗi tìm kiếm:", e)
