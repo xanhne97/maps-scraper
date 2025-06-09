@@ -1,80 +1,62 @@
 {% extends "layout.html" %}
 {% block content %}
-
-<div class="content-header">
-  <div class="container-fluid">
-    <h3 class="mb-4">📍 Tìm kiếm địa điểm trên Google Maps theo từ khóa, vị trí và bán kính</h3>
-
-    <!-- Form tìm kiếm -->
-    <form method="POST" action="/">
-      <div class="form-group">
-        <label for="keywords">Từ khóa (mỗi dòng một từ):</label>
-        <textarea name="keywords" id="keywords" class="form-control" rows="4" placeholder="Ví dụ: sửa xe, quán cafe">{{ request.form.keywords }}</textarea>
-      </div>
-
-      <div class="form-row">
-        <div class="form-group col-md-4">
-          <label for="lat">Vĩ độ (Latitude):</label>
-          <input type="text" class="form-control" name="lat" id="lat" placeholder="10.9451" value="{{ request.form.lat or '' }}">
-        </div>
-        <div class="form-group col-md-4">
-          <label for="lng">Kinh độ (Longitude):</label>
-          <input type="text" class="form-control" name="lng" id="lng" placeholder="106.8123" value="{{ request.form.lng or '' }}">
-        </div>
-        <div class="form-group col-md-4">
-          <label for="radius_km">Bán kính tìm kiếm (km):</label>
-          <input type="number" step="0.1" class="form-control" name="radius_km" id="radius_km" placeholder="Ví dụ: 2" value="{{ request.form.radius_km or '' }}">
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label for="street_filter">Lọc theo tên đường (tuỳ chọn):</label>
-        <input type="text" class="form-control" name="street_filter" id="street_filter" placeholder="Ví dụ: Nguyễn Ái Quốc" value="{{ request.form.street_filter or '' }}">
-      </div>
-
-      <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> Tìm kiếm</button>
-    </form>
-  </div>
-</div>
-
-<!-- Kết quả -->
 <div class="container-fluid mt-4">
+  <form method="POST" class="card card-body bg-light mb-4">
+    <div class="form-group">
+      <label>Từ khóa (mỗi dòng một):</label>
+      <textarea name="keywords" rows="4" class="form-control" placeholder="Ví dụ: sửa xe, thay nhớt...">{{ request.form.keywords }}</textarea>
+    </div>
+    <div class="form-row">
+      <div class="form-group col-md-6">
+        <label>Tên đường cần lọc (VD: Nguyễn Ái Quốc):</label>
+        <input name="street" class="form-control" value="{{ request.form.street or '' }}">
+      </div>
+      <div class="form-group col-md-3">
+        <label>Tọa độ LAT:</label>
+        <input name="lat" class="form-control" value="{{ request.form.lat or '' }}">
+      </div>
+      <div class="form-group col-md-3">
+        <label>Tọa độ LNG:</label>
+        <input name="lng" class="form-control" value="{{ request.form.lng or '' }}">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Bán kính (mét):</label>
+      <input name="radius" type="number" class="form-control" value="{{ request.form.radius or '1000' }}">
+    </div>
+    <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> Tìm kiếm</button>
+  </form>
+
   {% if data %}
   <div class="card">
-    <div class="card-header bg-success">
-      <h5 class="card-title text-white">✅ Kết quả tìm kiếm ({{ data|length }})</h5>
+    <div class="card-header bg-success text-white">
+      <h5>Kết quả tìm kiếm ({{ data|length }})</h5>
     </div>
-    <div class="card-body table-responsive p-0">
-      <table class="table table-hover text-nowrap">
+    <div class="card-body p-0 table-responsive">
+      <table class="table table-hover table-striped">
         <thead>
           <tr>
-            <th>#</th>
-            <th>Tên</th>
-            <th>Địa chỉ</th>
-            <th>Điện thoại</th>
-            <th>Website</th>
+            <th>#</th><th>Tên</th><th>Địa chỉ</th><th>Điện thoại</th><th>Website</th><th>Khoảng cách</th>
           </tr>
         </thead>
         <tbody>
           {% for item in data %}
           <tr>
             <td>{{ loop.index }}</td>
-            <td>{{ item.title or "-" }}</td>
-            <td>{{ item.address or "-" }}</td>
-            <td>{{ item.phone or "-" }}</td>
+            <td>{{ item.title or '-' }}</td>
+            <td>{{ item.address or '-' }}</td>
+            <td>{{ item.phone or '-' }}</td>
             <td>
               {% if item.website %}
-                <a href="{{ item.website }}" target="_blank">Xem</a>
-              {% else %}
-                -
-              {% endif %}
+              <a href="{{ item.website }}" target="_blank">Xem</a>
+              {% else %}-{% endif %}
             </td>
+            <td>{{ item.distance }} m</td>
           </tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
-
     <div class="card-footer">
       <a href="/download" class="btn btn-success"><i class="fas fa-file-excel"></i> Tải Excel</a>
     </div>
@@ -83,5 +65,4 @@
     <div class="alert alert-warning">Không tìm thấy kết quả phù hợp.</div>
   {% endif %}
 </div>
-
 {% endblock %}

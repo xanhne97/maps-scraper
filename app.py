@@ -10,35 +10,24 @@ last_data = []
 def index():
     global last_data
     data = []
-
     if request.method == "POST":
         try:
             keyword_str = request.form.get("keywords", "")
-            street_filter = request.form.get("street_filter", "").strip()
-            radius_km = request.form.get("radius_km", "")
-            lat = request.form.get("lat", "")
-            lng = request.form.get("lng", "")
+            street = request.form.get("street", "").strip()
+            radius = float(request.form.get("radius", "0").strip() or 0)
+            lat = float(request.form.get("lat", "0").strip())
+            lng = float(request.form.get("lng", "0").strip())
 
             keywords = [kw.strip() for kw in keyword_str.splitlines() if kw.strip()]
-            radius_km = float(radius_km) if radius_km else None
-
             if keywords and lat and lng:
-                data = scrape_from_keywords(
-                    keywords,
-                    lat=lat,
-                    lng=lng,
-                    street_filter=street_filter,
-                    radius_km=radius_km
-                )
+                data = scrape_from_keywords(keywords, lat, lng, street_filter=street, radius_m=radius)
                 last_data = data
-            else:
-                print("⚠️ Thiếu dữ liệu toạ độ hoặc từ khoá.")
         except Exception as e:
-            print(f"❌ Lỗi xử lý biểu mẫu: {e}")
+            print("❌ Lỗi tìm kiếm:", e)
 
     return render_template("index.html", data=data)
 
-@app.route("/download", methods=["GET"])
+@app.route("/download")
 def download_excel():
     global last_data
     if not last_data:
@@ -51,15 +40,6 @@ def download_excel():
             df.to_excel(writer, index=False, sheet_name="KetQua")
         output.seek(0)
 
-        return send_file(
-            output,
-            as_attachment=True,
-            download_name="ket_qua_google_maps.xlsx",
-            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
+        return send_file(output, as_attachment=True, download_name="ket_qua_google_maps.xlsx")
     except Exception as e:
-        print("❌ Lỗi khi xuất Excel:", e)
-        return f"Lỗi khi xuất Excel: {str(e)}", 500
-
-if __name__ == "__main__":
-    app.run(debug=True)
+        return f"Lỗi xuất Excel: {str(e)}", 500
