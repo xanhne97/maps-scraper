@@ -24,6 +24,7 @@ def scrape_from_keywords(keywords, street_filter=None, radius_km=None):
         try:
             search = GoogleSearch(params)
             results = search.get_dict()
+		print("📦 Kết quả từ SerpAPI:", results)
             local_results = results.get("local_results", [])
 
             if not local_results:
