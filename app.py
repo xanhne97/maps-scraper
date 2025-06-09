@@ -13,21 +13,23 @@ def index():
     if request.method == "POST":
         try:
             keyword_str = request.form.get("keywords", "")
-            lat = float(request.form.get("latitude", 0))
-            lng = float(request.form.get("longitude", 0))
-            radius_km = float(request.form.get("radius_km", 0))
-            radius_m = radius_km * 1000 if radius_km else None
+            lat = request.form.get("latitude", type=float)
+            lng = request.form.get("longitude", type=float)
+            radius_m = request.form.get("radius_m", type=int)
+
+            if not lat or not lng:
+                raise ValueError("Thiếu tọa độ")
 
             keywords = [kw.strip() for kw in keyword_str.splitlines() if kw.strip()]
             if keywords:
-                data = scrape_from_keywords(keywords, center_coords=(lat, lng), radius_m=radius_m)
+                center_coords = (lat, lng)
+                data = scrape_from_keywords(keywords, center_coords=center_coords, radius_m=radius_m)
                 last_data = data
         except Exception as e:
             print("❌ Lỗi tìm kiếm:", e)
-
     return render_template("index.html", data=data)
 
-@app.route("/download")
+@app.route("/download", methods=["GET"])
 def download_excel():
     global last_data
     if not last_data:
@@ -40,6 +42,15 @@ def download_excel():
             df.to_excel(writer, index=False, sheet_name="KetQua")
         output.seek(0)
 
-        return send_file(output, as_attachment=True, download_name="ket_qua_google_maps.xlsx")
+        return send_file(
+            output,
+            as_attachment=True,
+            download_name="ket_qua_google_maps.xlsx",
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
     except Exception as e:
-        return f"Lỗi xuất Excel: {str(e)}", 500
+        print("❌ Lỗi khi xuất Excel:", e)
+        return f"Lỗi khi xuất Excel: {str(e)}", 500
+
+if __name__ == "__main__":
+    app.run(debug=True)

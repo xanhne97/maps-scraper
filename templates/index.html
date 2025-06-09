@@ -1,68 +1,93 @@
 {% extends "layout.html" %}
 {% block content %}
-<div class="container-fluid mt-4">
-  <form method="POST" class="card card-body bg-light mb-4">
-    <div class="form-group">
-      <label>Từ khóa (mỗi dòng một):</label>
-      <textarea name="keywords" rows="4" class="form-control" placeholder="Ví dụ: sửa xe, thay nhớt...">{{ request.form.keywords }}</textarea>
-    </div>
-    <div class="form-row">
-      <div class="form-group col-md-6">
-        <label>Tên đường cần lọc (VD: Nguyễn Ái Quốc):</label>
-        <input name="street" class="form-control" value="{{ request.form.street or '' }}">
-      </div>
-      <div class="form-group col-md-3">
-        <label>Tọa độ LAT:</label>
-        <input name="lat" class="form-control" value="{{ request.form.lat or '' }}">
-      </div>
-      <div class="form-group col-md-3">
-        <label>Tọa độ LNG:</label>
-        <input name="lng" class="form-control" value="{{ request.form.lng or '' }}">
-      </div>
-    </div>
-    <div class="form-group">
-      <label>Bán kính (mét):</label>
-      <input name="radius" type="number" class="form-control" value="{{ request.form.radius or '1000' }}">
-    </div>
-    <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> Tìm kiếm</button>
-  </form>
 
+<!-- Header -->
+<div class="content-header">
+  <div class="container-fluid">
+    <h3 class="mb-4">🔍 Tìm kiếm doanh nghiệp theo ngành và vị trí</h3>
+
+    <!-- Form tìm kiếm -->
+    <form method="POST" action="/">
+      <div class="form-group">
+        <label for="keywords">Từ khóa tìm kiếm (mỗi dòng một từ):</label>
+        <textarea name="keywords" class="form-control" rows="4" placeholder="ví dụ: sửa xe máy&#10;rửa xe ô tô">{{ request.form.keywords }}</textarea>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group col-md-4">
+          <label for="latitude">Vĩ độ (latitude):</label>
+          <input type="text" name="latitude" class="form-control" placeholder="vd: 10.9501" value="{{ request.form.latitude }}">
+        </div>
+        <div class="form-group col-md-4">
+          <label for="longitude">Kinh độ (longitude):</label>
+          <input type="text" name="longitude" class="form-control" placeholder="vd: 106.8167" value="{{ request.form.longitude }}">
+        </div>
+        <div class="form-group col-md-4">
+          <label for="radius_m">Bán kính tìm kiếm (mét):</label>
+          <input type="number" name="radius_m" class="form-control" placeholder="vd: 1000" value="{{ request.form.radius_m }}">
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> Tìm kiếm</button>
+    </form>
+  </div>
+</div>
+
+<!-- Kết quả -->
+<div class="container-fluid mt-4">
   {% if data %}
   <div class="card">
-    <div class="card-header bg-success text-white">
-      <h5>Kết quả tìm kiếm ({{ data|length }})</h5>
+    <div class="card-header bg-success">
+      <h5 class="card-title text-white">Kết quả tìm kiếm ({{ data|length }})</h5>
     </div>
-    <div class="card-body p-0 table-responsive">
-      <table class="table table-hover table-striped">
+    <div class="card-body table-responsive p-0">
+      <table class="table table-hover text-nowrap">
         <thead>
           <tr>
-            <th>#</th><th>Tên</th><th>Địa chỉ</th><th>Điện thoại</th><th>Website</th><th>Khoảng cách</th>
+            <th>#</th>
+            <th>Tên</th>
+            <th>Địa chỉ</th>
+            <th>Điện thoại</th>
+            <th>Website</th>
+            <th>Khoảng cách</th>
           </tr>
         </thead>
         <tbody>
           {% for item in data %}
           <tr>
             <td>{{ loop.index }}</td>
-            <td>{{ item.title or '-' }}</td>
-            <td>{{ item.address or '-' }}</td>
-            <td>{{ item.phone or '-' }}</td>
+            <td>{{ item.title or "-" }}</td>
+            <td>{{ item.address or "-" }}</td>
+            <td>{{ item.phone or "-" }}</td>
             <td>
               {% if item.website %}
-              <a href="{{ item.website }}" target="_blank">Xem</a>
-              {% else %}-{% endif %}
+                <a href="{{ item.website }}" target="_blank">Xem</a>
+              {% else %}
+                -
+              {% endif %}
             </td>
-            <td>{{ item.distance }} m</td>
+            <td>
+              {% if item.distance %}
+                {{ item.distance|round(0) }} m
+              {% else %}
+                -
+              {% endif %}
+            </td>
           </tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
+
     <div class="card-footer">
-      <a href="/download" class="btn btn-success"><i class="fas fa-file-excel"></i> Tải Excel</a>
+      <a href="/download" class="btn btn-success">
+        <i class="fas fa-file-excel"></i> Tải Excel
+      </a>
     </div>
   </div>
   {% elif request.method == 'POST' %}
     <div class="alert alert-warning">Không tìm thấy kết quả phù hợp.</div>
   {% endif %}
 </div>
+
 {% endblock %}

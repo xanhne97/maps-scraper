@@ -15,7 +15,7 @@ def scrape_from_keywords(keywords, center_coords=CENTER_COORDS, radius_m=None):
         params = {
             "engine": "google_maps",
             "q": keyword,
-            "location": "Vietnam",
+            "ll": f"@{center_coords[0]},{center_coords[1]},14z",  # zoom cấp 14 theo tọa độ
             "type": "search",
             "api_key": SERP_API_KEY
         }
@@ -34,7 +34,7 @@ def scrape_from_keywords(keywords, center_coords=CENTER_COORDS, radius_m=None):
                 address = item.get("address")
                 coords = item.get("gps_coordinates")
 
-                # Lọc theo bán kính nếu có
+                distance = None
                 if radius_m and coords:
                     place_coords = (coords.get("latitude"), coords.get("longitude"))
                     distance = geodesic(center_coords, place_coords).meters
@@ -48,6 +48,7 @@ def scrape_from_keywords(keywords, center_coords=CENTER_COORDS, radius_m=None):
                     "website": item.get("website"),
                     "lat": coords.get("latitude") if coords else None,
                     "lng": coords.get("longitude") if coords else None,
+                    "distance": distance
                 })
 
         except Exception as e:
