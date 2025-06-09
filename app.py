@@ -1,4 +1,3 @@
-# app.py
 from flask import Flask, render_template, request, send_file
 from scraper import scrape_from_keywords
 import pandas as pd
@@ -11,19 +10,31 @@ last_data = []
 def index():
     global last_data
     data = []
+
     if request.method == "POST":
         try:
             keyword_str = request.form.get("keywords", "")
             street_filter = request.form.get("street_filter", "").strip()
             radius_km = request.form.get("radius_km", "")
-            radius_km = float(radius_km) if radius_km else None
+            lat = request.form.get("lat", "")
+            lng = request.form.get("lng", "")
 
             keywords = [kw.strip() for kw in keyword_str.splitlines() if kw.strip()]
-            if keywords:
-                data = scrape_from_keywords(keywords, street_filter=street_filter, radius_km=radius_km)
+            radius_km = float(radius_km) if radius_km else None
+
+            if keywords and lat and lng:
+                data = scrape_from_keywords(
+                    keywords,
+                    lat=lat,
+                    lng=lng,
+                    street_filter=street_filter,
+                    radius_km=radius_km
+                )
                 last_data = data
+            else:
+                print("⚠️ Thiếu dữ liệu toạ độ hoặc từ khoá.")
         except Exception as e:
-            print("\u274c Lỗi tìm kiếm:", e)
+            print(f"❌ Lỗi xử lý biểu mẫu: {e}")
 
     return render_template("index.html", data=data)
 
@@ -47,7 +58,7 @@ def download_excel():
             mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
     except Exception as e:
-        print("\u274c Lỗi khi xuất Excel:", e)
+        print("❌ Lỗi khi xuất Excel:", e)
         return f"Lỗi khi xuất Excel: {str(e)}", 500
 
 if __name__ == "__main__":
