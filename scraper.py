@@ -3,7 +3,7 @@ from serpapi import GoogleSearch
 from geopy.distance import geodesic
 
 # Lấy API key từ biến môi trường hoặc giá trị mặc định (nên đặt biến môi trường SERPAPI_API_KEY trên Render)
-SERP_API_KEY = os.getenv("SERPAPI_API_KEY") or "ec6ebc97417c58e864f3a71a413ef15358763c4c29c7716ff645804ec8b3c808"
+SERP_API_KEY = os.getenv("SERPAPI_API_KEY") or "4d1768c9601cd2fb5b7e78d33f981521d07751a2a73e34fe31e09865e86a9be8"
 
 # Vị trí trung tâm mặc định (có thể thay đổi theo input người dùng)
 CENTER_COORDS = (10.9501, 106.8167)  # Ví dụ: Biên Hòa
