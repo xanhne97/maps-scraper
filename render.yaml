@@ -8,5 +8,12 @@ services:
     # Quét sâu gọi nhiều lượt API nên cần timeout dài hơn mặc định 30s
     startCommand: gunicorn app:app --timeout 300 --workers 1 --threads 4
     envVars:
-      - key: SERPAPI_API_KEY
+      - key: GOOGLE_MAPS_API_KEY
         sync: false
+      # Postgres (vd Supabase/Neon) để cache và bộ đếm quota không mất khi Render khởi động lại
+      - key: DATABASE_URL
+        sync: false
+      - key: GOOGLE_MONTHLY_LIMIT
+        value: "1000"
+      - key: CACHE_TTL_DAYS
+        value: "7"

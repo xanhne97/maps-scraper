@@ -1,21 +1,25 @@
 import math
 import os
+import re
 from concurrent.futures import ThreadPoolExecutor
+from difflib import SequenceMatcher
 
 from geopy.distance import geodesic
-from serpapi import GoogleSearch
 
-# API key chỉ lấy từ biến môi trường (đặt SERPAPI_API_KEY trên Render), không ghi vào code
-SERP_API_KEY = os.getenv("SERPAPI_API_KEY")
+import cache
+import google_places
+import osm
 
-PAGE_SIZE = 20          # Google Maps trả tối đa 20 kết quả mỗi trang
-MAX_PAGES = 6           # SerpAPI khuyến nghị start tối đa 100 (= 6 trang)
-MAX_WORKERS = 8         # số request gọi song song
-MAX_API_CALLS = 200     # trần số lượt gọi cho một lần tìm, tránh cháy quota
-MAX_GRID_POINTS = 25    # số điểm lưới tối đa khi quét sâu
-BASE_CELL_RADIUS = 1000 # bán kính mỗi ô lưới (mét) khi bán kính tìm còn nhỏ
+MAX_WORKERS = 8         # số request Google gọi song song
+MAX_API_CALLS = 200     # trần số lượt gọi Google cho một lần tìm
+MAX_GRID_TILES = 25     # số ô lưới tối đa khi quét sâu
+BASE_TILE_SIZE = 1500   # cạnh mỗi ô lưới (mét) khi bán kính tìm còn nhỏ
+MERGE_DISTANCE = 150    # hai kết quả Google/OSM cách nhau dưới mức này và trùng tên thì coi là một
 
-# Mức độ quét: số trang tối đa cho mỗi điểm, có chia vùng thành lưới hay không
+# Giới hạn lượt gọi Google mỗi tháng, đặt theo hạn mức miễn phí trên bảng giá Google Cloud
+GOOGLE_MONTHLY_LIMIT = int(os.getenv("GOOGLE_MONTHLY_LIMIT", "1000"))
+
+# Mức độ quét: số trang tối đa cho mỗi ô, có chia vùng thành lưới hay không
 SCAN_LEVELS = {
     "fast": {"label": "Nhanh", "pages": 1, "grid": False},
     "normal": {"label": "Vừa", "pages": 3, "grid": False},
@@ -26,16 +30,6 @@ SCAN_LEVELS = {
 CENTER_COORDS = (10.9501, 106.8167)
 
 
-def zoom_for_radius(radius_m):
-    """Chọn mức zoom sao cho khung bản đồ vừa phủ bán kính cần tìm."""
-    if not radius_m:
-        return 14
-    for limit, zoom in ((300, 17), (600, 16), (1200, 15), (2500, 14), (5000, 13), (10000, 12), (20000, 11)):
-        if radius_m <= limit:
-            return zoom
-    return 10
-
-
 def _offset(center, dx_m, dy_m):
     lat, lng = center
     return (
@@ -44,173 +38,211 @@ def _offset(center, dx_m, dy_m):
     )
 
 
-def build_grid(center, radius_m):
-    """Chia vùng tròn thành lưới điểm, mỗi điểm là một lượt tìm riêng.
+def _rect(center, half_m):
+    return _offset(center, -half_m, -half_m), _offset(center, half_m, half_m)
 
-    Google Maps chỉ trả về ~120 kết quả cho một khung nhìn, nên tìm ở nhiều
-    điểm nhỏ trong vùng sẽ ra được nhiều cơ sở hơn tìm một lần ở tâm.
-    Trả về (danh sách điểm, bán kính mỗi ô).
+
+def build_tiles(center, radius_m):
+    """Chia vùng tròn thành các ô vuông liền nhau, mỗi ô là một lượt tìm riêng.
+
+    Google chỉ trả tối đa 60 kết quả cho một truy vấn, nên tìm trong nhiều ô nhỏ
+    sẽ ra được nhiều cơ sở hơn tìm một lần cho cả vùng.
     """
-    spacing = BASE_CELL_RADIUS * math.sqrt(2)
+    size = BASE_TILE_SIZE
     while True:
-        n = int(radius_m // spacing)
-        points = []
+        n = math.ceil(radius_m / size)
+        tiles = []
         for i in range(-n, n + 1):
             for j in range(-n, n + 1):
-                dx, dy = i * spacing, j * spacing
-                if math.hypot(dx, dy) <= radius_m + spacing / 2:
-                    points.append(_offset(center, dx, dy))
-        if len(points) <= MAX_GRID_POINTS:
-            return points, spacing / math.sqrt(2)
-        spacing *= 1.2
+                dx, dy = i * size, j * size
+                # giữ ô nếu có phần giao với vòng tròn
+                if math.hypot(dx, dy) - size / math.sqrt(2) <= radius_m:
+                    tiles.append(_rect(_offset(center, dx, dy), size / 2))
+        if len(tiles) <= MAX_GRID_TILES:
+            return tiles
+        size *= 1.2
 
 
 def plan_search(keywords, center, radius_m, level):
-    """Tính trước các điểm tìm, zoom và số trang để không vượt MAX_API_CALLS."""
+    """Tính trước các ô tìm và số trang để không vượt MAX_API_CALLS."""
     cfg = SCAN_LEVELS.get(level, SCAN_LEVELS["normal"])
-    if cfg["grid"] and radius_m and radius_m > BASE_CELL_RADIUS:
-        points, cell_radius = build_grid(center, radius_m)
+    if cfg["grid"] and radius_m and radius_m > BASE_TILE_SIZE / 2:
+        tiles = build_tiles(center, radius_m)
+    elif radius_m:
+        tiles = [_rect(center, radius_m)]
     else:
-        points, cell_radius = [center], radius_m
-    zoom = zoom_for_radius(cell_radius)
+        tiles = [None]
 
-    chains = len(points) * len(keywords)
+    chains = len(tiles) * len(keywords)
     if chains > MAX_API_CALLS:
         raise ValueError(
             f"Cần ít nhất {chains} lượt gọi API (tối đa {MAX_API_CALLS}). "
             "Hãy giảm số từ khóa, giảm bán kính hoặc chọn mức quét thấp hơn."
         )
-    pages = max(1, min(cfg["pages"], MAX_PAGES, MAX_API_CALLS // chains))
-    return points, zoom, pages
+    pages = max(1, min(cfg["pages"], google_places.MAX_PAGES, MAX_API_CALLS // chains))
+    return tiles, pages
 
 
-def _fetch_page(keyword, point, zoom, start):
-    params = {
-        "engine": "google_maps",
-        "type": "search",
-        "q": keyword,
-        "ll": f"@{point[0]},{point[1]},{zoom}z",
-        "start": start,
-        "hl": "vi",
-        "api_key": SERP_API_KEY,
-    }
-    res = GoogleSearch(params).get_dict()
-    error = res.get("error")
-    if error:
-        if "hasn't returned any results" in error:
-            return [], False
-        raise RuntimeError(error)
-
-    items = res.get("local_results") or []
-    # Khi từ khóa khớp đúng một địa điểm, SerpAPI trả place_results thay vì danh sách
-    if not items and res.get("place_results"):
-        items = [res["place_results"]]
-    has_next = len(items) >= PAGE_SIZE and bool(res.get("serpapi_pagination", {}).get("next"))
-    return items, has_next
+def _round_rect(rect):
+    return [[round(v, 5) for v in corner] for corner in rect] if rect else None
 
 
-def _scan_chain(keyword, point, zoom, pages, center, radius_m):
-    """Lật lần lượt các trang cho một (từ khóa, điểm). Trả về (items, số lượt gọi, lỗi)."""
-    items, calls = [], 0
+def _google_job(keyword, rect, pages, center):
     try:
-        for page in range(pages):
-            page_items, has_next = _fetch_page(keyword, point, zoom, page * PAGE_SIZE)
-            calls += 1
-            items.extend((keyword, it) for it in page_items)
-            if not has_next:
-                break
-            # Trang này toàn chỗ nằm ngoài bán kính thì các trang sau còn xa hơn, dừng sớm
-            if radius_m and not any(_in_radius(it, center, radius_m) for it in page_items):
-                break
+        places, calls = google_places.search(keyword, pages, rect=rect, center=center)
+        return keyword, places, calls, None
     except Exception as e:
-        return items, calls, f"'{keyword}' tại ({point[0]:.4f}, {point[1]:.4f}): {e}"
-    return items, calls, None
+        return keyword, [], getattr(e, "calls", 0), f"Google '{keyword}': {e}"
 
 
-def _coords(item):
-    c = item.get("gps_coordinates") or {}
-    lat, lng = c.get("latitude"), c.get("longitude")
-    return (lat, lng) if lat is not None and lng is not None else None
+def _osm_job(keywords, center, radius_m, refresh):
+    key = cache.make_key("osm", {
+        "q": sorted(kw.lower() for kw in keywords),
+        "c": [round(v, 4) for v in center],
+        "r": radius_m,
+    })
+    found = None if refresh else cache.get(key)
+    if found is None:
+        try:
+            found = osm.search(keywords, center, radius_m)
+        except Exception as e:
+            return [], [str(e)]
+        cache.set(key, found)
+    return [(kw, place) for kw, place in found], []
 
 
-def _in_radius(item, center, radius_m):
-    coords = _coords(item)
-    return coords is not None and geodesic(center, coords).meters <= radius_m
+def _name_key(name):
+    return re.sub(r"[^a-z0-9]+", " ", osm.unaccent((name or "").lower())).strip()
 
 
-def _normalize(item, keyword, center):
-    coords = _coords(item)
-    place_id = item.get("place_id")
-    return {
-        "title": item.get("title"),
-        "category": item.get("type"),
-        "address": item.get("address"),
-        "phone": item.get("phone"),
-        "website": item.get("website"),
-        "rating": item.get("rating"),
-        "reviews": item.get("reviews"),
-        "lat": coords[0] if coords else None,
-        "lng": coords[1] if coords else None,
-        "distance": round(geodesic(center, coords).meters) if coords else None,
-        "maps_url": f"https://www.google.com/maps/place/?q=place_id:{place_id}" if place_id else None,
-        "keywords": keyword,
-        "_key": place_id or item.get("data_id") or f"{item.get('title')}|{item.get('address')}",
-    }
+def _same_name(a, b):
+    a, b = _name_key(a), _name_key(b)
+    if not a or not b:
+        return False
+    return a in b or b in a or SequenceMatcher(None, a, b).ratio() >= 0.75
 
 
-def scrape_from_keywords(keywords, center_coords=CENTER_COORDS, radius_m=None, level="normal"):
-    """Tìm theo nhiều từ khóa, gộp trùng, lọc theo bán kính và sắp theo khoảng cách.
+def _quick_distance(a, b):
+    """Khoảng cách xấp xỉ (mét), đủ chính xác cho vài trăm mét và nhanh hơn geodesic."""
+    dy = (a["lat"] - b["lat"]) * 111320
+    dx = (a["lng"] - b["lng"]) * 111320 * math.cos(math.radians(a["lat"]))
+    return math.hypot(dx, dy)
 
-    Trả về dict gồm results (danh sách địa điểm) và stats (thống kê lượt tìm).
-    """
-    if not SERP_API_KEY:
-        raise RuntimeError("Chưa cấu hình biến môi trường SERPAPI_API_KEY")
 
-    points, zoom, pages = plan_search(keywords, center_coords, radius_m, level)
-    jobs = [(kw, p) for kw in keywords for p in points]
-
-    raw, errors, api_calls = [], [], 0
-    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as pool:
-        futures = [
-            pool.submit(_scan_chain, kw, p, zoom, pages, center_coords, radius_m)
-            for kw, p in jobs
-        ]
-        for f in futures:
-            items, calls, error = f.result()
-            raw.extend(items)
-            api_calls += calls
-            if error:
-                errors.append(error)
-
+def _merge(google_found, osm_found, center, radius_m):
     merged = {}
-    for keyword, item in raw:
-        place = _normalize(item, keyword, center_coords)
-        if radius_m and (place["distance"] is None or place["distance"] > radius_m):
-            continue
-        existing = merged.get(place["_key"])
+
+    def add(keyword, place):
+        existing = merged.get(place["_id"])
         if existing:
             if keyword not in existing["keywords"].split(", "):
                 existing["keywords"] += f", {keyword}"
-        else:
-            merged[place["_key"]] = place
+            return
+        has_coords = place["lat"] is not None and place["lng"] is not None
+        place["distance"] = round(geodesic(center, (place["lat"], place["lng"])).meters) if has_coords else None
+        if radius_m and (place["distance"] is None or place["distance"] > radius_m):
+            return
+        place["keywords"] = keyword
+        merged[place["_id"]] = place
 
-    results = sorted(
-        merged.values(),
-        key=lambda p: (p["distance"] is None, p["distance"] or 0),
-    )
+    for keyword, place in google_found:
+        add(keyword, dict(place))
+
+    google_list = [p for p in merged.values() if p["lat"] is not None]
+    for keyword, place in osm_found:
+        place = dict(place)
+        if place["lat"] is not None:
+            twin = next(
+                (g for g in google_list
+                 if _quick_distance(g, place) <= MERGE_DISTANCE and _same_name(g["title"], place["title"])),
+                None,
+            )
+            if twin:
+                # Cùng một cơ sở: giữ bản Google, lấy thêm thông tin còn thiếu từ OSM
+                twin["phone"] = twin["phone"] or place["phone"]
+                twin["website"] = twin["website"] or place["website"]
+                twin["source"] = "Google + OSM"
+                if keyword not in twin["keywords"].split(", "):
+                    twin["keywords"] += f", {keyword}"
+                continue
+        add(keyword, place)
+
+    results = sorted(merged.values(), key=lambda p: (p["distance"] is None, p["distance"] or 0))
     for p in results:
-        del p["_key"]
+        del p["_id"]
+    return results
 
-    print(f"✅ {len(results)} địa điểm / {len(raw)} kết quả thô / {api_calls} lượt gọi API")
+
+def scrape_from_keywords(keywords, center_coords=CENTER_COORDS, radius_m=None, level="normal",
+                         use_osm=True, refresh=False):
+    """Tìm theo nhiều từ khóa từ Google Places và OpenStreetMap, có cache.
+
+    Trả về dict gồm results (danh sách địa điểm), stats và errors.
+    """
+    use_google = bool(google_places.API_KEY)
+    if not use_google and not use_osm:
+        raise RuntimeError("Chưa cấu hình GOOGLE_MAPS_API_KEY, hãy bật nguồn OpenStreetMap hoặc đặt key")
+    errors = [] if use_google else ["Chưa cấu hình GOOGLE_MAPS_API_KEY, chỉ tìm trên OpenStreetMap"]
+
+    google_found, jobs, cache_hits = [], [], 0
+    tiles, pages = [], 0
+    if use_google:
+        tiles, pages = plan_search(keywords, center_coords, radius_m, level)
+        for kw in keywords:
+            for rect in tiles:
+                key = cache.make_key("google", {
+                    "q": kw.lower(),
+                    "rect": _round_rect(rect),
+                    "c": None if rect else [round(v, 4) for v in center_coords],
+                    "pages": pages,
+                })
+                places = None if refresh else cache.get(key)
+                if places is None:
+                    jobs.append((kw, rect, key))
+                else:
+                    cache_hits += 1
+                    google_found.extend((kw, p) for p in places)
+
+        max_calls = len(jobs) * pages
+        used = cache.monthly_usage()
+        if used + max_calls > GOOGLE_MONTHLY_LIMIT:
+            raise ValueError(
+                f"Tháng này đã dùng {used}/{GOOGLE_MONTHLY_LIMIT} lượt Google, lần tìm này có thể cần thêm "
+                f"tối đa {max_calls} lượt. Hãy chọn mức quét thấp hơn hoặc tăng GOOGLE_MONTHLY_LIMIT."
+            )
+
+    api_calls, osm_found = 0, []
+    with ThreadPoolExecutor(max_workers=MAX_WORKERS + 1) as pool:
+        osm_future = pool.submit(_osm_job, keywords, center_coords, radius_m, refresh) if use_osm else None
+        futures = {pool.submit(_google_job, kw, rect, pages, center_coords): key for kw, rect, key in jobs}
+        for future, key in futures.items():
+            keyword, places, calls, error = future.result()
+            api_calls += calls
+            if error:
+                errors.append(error)
+            else:
+                cache.set(key, places)
+                google_found.extend((keyword, p) for p in places)
+        if osm_future:
+            osm_found, osm_errors = osm_future.result()
+            errors.extend(osm_errors)
+
+    cache.add_usage(api_calls)
+    results = _merge(google_found, osm_found, center_coords, radius_m)
+
+    print(f"✅ {len(results)} địa điểm / Google {len(google_found)} (gọi {api_calls}, cache {cache_hits}) / OSM {len(osm_found)}")
     return {
         "results": results,
         "stats": {
             "api_calls": api_calls,
-            "raw_count": len(raw),
+            "cache_hits": cache_hits,
+            "google_count": len(google_found),
+            "osm_count": len(osm_found),
             "unique_count": len(results),
-            "points": len(points),
+            "tiles": len(tiles),
             "pages": pages,
-            "zoom": zoom,
+            "monthly_used": cache.monthly_usage() if use_google else None,
+            "monthly_limit": GOOGLE_MONTHLY_LIMIT,
         },
         "errors": errors,
     }

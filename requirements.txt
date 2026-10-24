@@ -3,6 +3,7 @@ Flask==2.3.2
 Werkzeug==2.3.8
 gunicorn
 pandas
-google-search-results>=2.0.2
 openpyxl
 geopy
+requests
+psycopg[binary]

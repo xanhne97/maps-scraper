@@ -32,10 +32,23 @@
           <select name="level" id="level" class="form-control">
             {% for key, lv in levels.items() %}
             <option value="{{ key }}" {% if (request.form.level or 'normal') == key %}selected{% endif %}>
-              {{ lv.label }} – tối đa {{ lv.pages * 20 }} KQ/điểm
+              {{ lv.label }} – tối đa {{ lv.pages * 20 }} KQ/ô
             </option>
             {% endfor %}
           </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <div class="custom-control custom-checkbox custom-control-inline">
+          <input type="checkbox" class="custom-control-input" id="use_osm" name="use_osm" value="1"
+                 {% if request.form.use_osm %}checked{% endif %}>
+          <label class="custom-control-label" for="use_osm">Bổ sung từ OpenStreetMap (miễn phí, chậm thêm 30–60 giây, ít dữ liệu)</label>
+        </div>
+        <div class="custom-control custom-checkbox custom-control-inline">
+          <input type="checkbox" class="custom-control-input" id="refresh" name="refresh" value="1"
+                 {% if request.form.refresh %}checked{% endif %}>
+          <label class="custom-control-label" for="refresh">Lấy dữ liệu mới (bỏ qua cache)</label>
         </div>
       </div>
 
@@ -66,8 +79,13 @@
     </div>
     {% if stats %}
     <div class="px-3 pt-2 text-muted small">
-      Quét {{ stats.points }} điểm × tối đa {{ stats.pages }} trang · {{ stats.api_calls }} lượt gọi API ·
-      {{ stats.raw_count }} kết quả thô → {{ stats.unique_count }} địa điểm sau khi gộp trùng và lọc bán kính
+      {% if stats.tiles %}
+      Google: {{ stats.tiles }} ô × tối đa {{ stats.pages }} trang · {{ stats.api_calls }} lượt gọi mới,
+      {{ stats.cache_hits }} lượt lấy từ cache · {{ stats.google_count }} kết quả ·
+      tháng này đã dùng {{ stats.monthly_used }}/{{ stats.monthly_limit }} lượt<br>
+      {% endif %}
+      OpenStreetMap: {{ stats.osm_count }} kết quả ·
+      Tổng {{ stats.unique_count }} địa điểm sau khi gộp trùng và lọc bán kính
     </div>
     {% endif %}
     <div class="card-body table-responsive p-0">
@@ -83,6 +101,7 @@
             <th>Website</th>
             <th>Khoảng cách</th>
             <th>Bản đồ</th>
+            <th>Nguồn</th>
           </tr>
         </thead>
         <tbody>
@@ -121,6 +140,7 @@
                 -
               {% endif %}
             </td>
+            <td><span class="badge {% if item.source == 'OSM' %}badge-info{% else %}badge-primary{% endif %}">{{ item.source }}</span></td>
           </tr>
           {% endfor %}
         </tbody>

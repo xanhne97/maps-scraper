@@ -36,6 +36,7 @@ EXCEL_COLUMNS = {
     "lng": "Kinh độ",
     "maps_url": "Google Maps",
     "keywords": "Từ khóa",
+    "source": "Nguồn",
 }
 
 
@@ -86,8 +87,11 @@ def index():
             center_coords = _parse_coords(request.form)
             radius_m = request.form.get("radius_m", type=int)
             level = request.form.get("level", "normal")
+            use_osm = request.form.get("use_osm") == "1"
+            refresh = request.form.get("refresh") == "1"
 
-            outcome = scrape_from_keywords(keywords, center_coords=center_coords, radius_m=radius_m, level=level)
+            outcome = scrape_from_keywords(keywords, center_coords=center_coords, radius_m=radius_m,
+                                           level=level, use_osm=use_osm, refresh=refresh)
             context.update(
                 data=outcome["results"],
                 stats=outcome["stats"],
