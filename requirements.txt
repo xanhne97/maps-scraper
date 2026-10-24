@@ -1,10 +1,8 @@
 # requirements.txt
 Flask==2.3.2
-requests
-beautifulsoup4
+Werkzeug==2.3.8
 gunicorn
 pandas
 google-search-results>=2.0.2
 openpyxl
 geopy
-serpapi

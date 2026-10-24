@@ -5,4 +5,8 @@ services:
     env: python
     plan: free
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app
+    # Quét sâu gọi nhiều lượt API nên cần timeout dài hơn mặc định 30s
+    startCommand: gunicorn app:app --timeout 300 --workers 1 --threads 4
+    envVars:
+      - key: SERPAPI_API_KEY
+        sync: false

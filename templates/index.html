@@ -7,49 +7,82 @@
     <h3 class="mb-4">🔍 Tìm kiếm doanh nghiệp theo ngành và vị trí</h3>
 
     <!-- Form tìm kiếm -->
-    <form method="POST" action="/">
+    <form method="POST" action="/" id="search-form">
       <div class="form-group">
         <label for="keywords">Từ khóa tìm kiếm (mỗi dòng một từ):</label>
-        <textarea name="keywords" class="form-control" rows="4" placeholder="ví dụ: sửa xe máy&#10;rửa xe ô tô">{{ request.form.keywords }}</textarea>
+        <textarea name="keywords" id="keywords" class="form-control" rows="4" placeholder="ví dụ: sửa xe máy&#10;rửa xe ô tô">{{ request.form.keywords }}</textarea>
+        <small class="form-text text-muted">Mẹo: thêm các cách gọi khác nhau (vd: "garage ô tô", "sửa ô tô", "bảo dưỡng ô tô") để ra nhiều kết quả hơn. Kết quả trùng sẽ tự gộp.</small>
       </div>
 
       <div class="form-row">
-        <div class="form-group col-md-4">
+        <div class="form-group col-md-3">
           <label for="latitude">Vĩ độ (latitude):</label>
-          <input type="text" name="latitude" class="form-control" placeholder="vd: 10.9501" value="{{ request.form.latitude }}">
+          <input type="text" name="latitude" id="latitude" class="form-control" placeholder="vd: 10.9501 hoặc dán 10.9501, 106.8167" value="{{ request.form.latitude }}">
         </div>
-        <div class="form-group col-md-4">
+        <div class="form-group col-md-3">
           <label for="longitude">Kinh độ (longitude):</label>
-          <input type="text" name="longitude" class="form-control" placeholder="vd: 106.8167" value="{{ request.form.longitude }}">
+          <input type="text" name="longitude" id="longitude" class="form-control" placeholder="vd: 106.8167" value="{{ request.form.longitude }}">
         </div>
-        <div class="form-group col-md-4">
+        <div class="form-group col-md-3">
           <label for="radius_m">Bán kính tìm kiếm (mét):</label>
-          <input type="number" name="radius_m" class="form-control" placeholder="vd: 1000" value="{{ request.form.radius_m }}">
+          <input type="number" name="radius_m" id="radius_m" min="100" class="form-control" placeholder="vd: 3000" value="{{ request.form.radius_m }}">
+        </div>
+        <div class="form-group col-md-3">
+          <label for="level">Mức độ quét:</label>
+          <select name="level" id="level" class="form-control">
+            {% for key, lv in levels.items() %}
+            <option value="{{ key }}" {% if (request.form.level or 'normal') == key %}selected{% endif %}>
+              {{ lv.label }} – tối đa {{ lv.pages * 20 }} KQ/điểm
+            </option>
+            {% endfor %}
+          </select>
         </div>
       </div>
 
-      <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> Tìm kiếm</button>
+      <button type="submit" class="btn btn-primary" id="submit-btn"><i class="fas fa-search"></i> Tìm kiếm</button>
+      <button type="button" class="btn btn-outline-secondary" id="locate-btn"><i class="fas fa-location-arrow"></i> Dùng vị trí của tôi</button>
+      <small class="form-text text-muted mt-2">"Sâu" chia vùng thành nhiều điểm nhỏ để lấy nhiều kết quả nhất, nhưng tốn nhiều lượt gọi API và chạy lâu hơn.</small>
     </form>
   </div>
 </div>
 
 <!-- Kết quả -->
 <div class="container-fluid mt-4">
+  {% if error %}
+    <div class="alert alert-danger">{{ error }}</div>
+  {% endif %}
+
+  {% if warnings %}
+    <div class="alert alert-warning">
+      Một số lượt tìm bị lỗi ({{ warnings|length }}):
+      <ul class="mb-0">{% for w in warnings[:5] %}<li>{{ w }}</li>{% endfor %}</ul>
+    </div>
+  {% endif %}
+
   {% if data %}
   <div class="card">
     <div class="card-header bg-success">
       <h5 class="card-title text-white">Kết quả tìm kiếm ({{ data|length }})</h5>
     </div>
+    {% if stats %}
+    <div class="px-3 pt-2 text-muted small">
+      Quét {{ stats.points }} điểm × tối đa {{ stats.pages }} trang · {{ stats.api_calls }} lượt gọi API ·
+      {{ stats.raw_count }} kết quả thô → {{ stats.unique_count }} địa điểm sau khi gộp trùng và lọc bán kính
+    </div>
+    {% endif %}
     <div class="card-body table-responsive p-0">
       <table class="table table-hover text-nowrap">
         <thead>
           <tr>
             <th>#</th>
             <th>Tên</th>
+            <th>Loại hình</th>
             <th>Địa chỉ</th>
             <th>Điện thoại</th>
+            <th>Đánh giá</th>
             <th>Website</th>
             <th>Khoảng cách</th>
+            <th>Bản đồ</th>
           </tr>
         </thead>
         <tbody>
@@ -57,18 +90,33 @@
           <tr>
             <td>{{ loop.index }}</td>
             <td>{{ item.title or "-" }}</td>
+            <td>{{ item.category or "-" }}</td>
             <td>{{ item.address or "-" }}</td>
             <td>{{ item.phone or "-" }}</td>
             <td>
-              {% if item.website %}
-                <a href="{{ item.website }}" target="_blank">Xem</a>
+              {% if item.rating %}
+                {{ item.rating }} ⭐ ({{ item.reviews or 0 }})
               {% else %}
                 -
               {% endif %}
             </td>
             <td>
-              {% if item.distance %}
-                {{ item.distance|round(0) }} m
+              {% if item.website %}
+                <a href="{{ item.website }}" target="_blank" rel="noopener">Xem</a>
+              {% else %}
+                -
+              {% endif %}
+            </td>
+            <td>
+              {% if item.distance is not none %}
+                {{ item.distance }} m
+              {% else %}
+                -
+              {% endif %}
+            </td>
+            <td>
+              {% if item.maps_url %}
+                <a href="{{ item.maps_url }}" target="_blank" rel="noopener"><i class="fas fa-map-marker-alt"></i></a>
               {% else %}
                 -
               {% endif %}
@@ -79,15 +127,38 @@
       </table>
     </div>
 
+    {% if search_id %}
     <div class="card-footer">
-      <a href="/download" class="btn btn-success">
+      <a href="/download/{{ search_id }}" class="btn btn-success">
         <i class="fas fa-file-excel"></i> Tải Excel
       </a>
     </div>
+    {% endif %}
   </div>
-  {% elif request.method == 'POST' %}
+  {% elif request.method == 'POST' and not error %}
     <div class="alert alert-warning">Không tìm thấy kết quả phù hợp.</div>
   {% endif %}
 </div>
+
+<script>
+  document.getElementById("search-form").addEventListener("submit", function () {
+    var btn = document.getElementById("submit-btn");
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang tìm, vui lòng đợi...';
+  });
+
+  document.getElementById("locate-btn").addEventListener("click", function () {
+    if (!navigator.geolocation) {
+      alert("Trình duyệt không hỗ trợ lấy vị trí");
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(function (pos) {
+      document.getElementById("latitude").value = pos.coords.latitude.toFixed(6);
+      document.getElementById("longitude").value = pos.coords.longitude.toFixed(6);
+    }, function () {
+      alert("Không lấy được vị trí, hãy cho phép truy cập vị trí hoặc nhập tay");
+    });
+  });
+</script>
 
 {% endblock %}
